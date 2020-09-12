@@ -14,45 +14,51 @@ class ProdutoController{
     }
 
     criar_produto( req, res ){ 
-        console.log( req.file );            
-        let doc = {
-            _id: new mongoose.Types.ObjectId(),
-            nome: req.body.nome.trim().toUpperCase(),
-            preco: req.body.preco,
-            qtd_em_estoque: req.body.estoque,
-            imagemURL: ( req.file ) ? req.file.path : PRODUTO.defaultURLimage
-        }
-        
-        this._repo.create( doc )
-        .then( repo_return => res.status( repo_return.status ).json( repo_return.response ))
+        //recupera os dados do corpo da requisição e cria um novo documento
+        let produto = {}
+        produto[ PRODUTO.campos.id ] = new mongoose.Types.ObjectId(); 
+        produto[ PRODUTO.campos.nome ] = req.body.nome.trim().toUpperCase();
+        produto[ PRODUTO.campos.preco ] = req.body.preco;
+        produto[ PRODUTO.campos.estoque ] = req.body.estoque;
+        produto[ PRODUTO.campos.imagem ] = req.file ? req.file.path : PRODUTO.defaultURLimage;                 
+ 
+        //Invoca o repositorio e envia o Documento para este realizar a transação com o banco de dados
+        this._repo.create( produto )
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error ));           
     }    
     
     listar_produtos( req, res ){
+        //invoca o repositório para este realizar a query no banco de dados
         this._repo.readAll()
-        .then( repo_return => res.status( repo_return.status ).json( repo_return.response ))
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error.message ))
     }
 
     buscar_produto( req, res ){
+        //recupera a id da lista de parametros da requisição
         const id = req.params.id
         
+        //checa a validade do formato da id
         if( !this._validator.idFormatIsValid( id )){
             return res.status( httpStatusCode.BAD_REQUEST ).json({
                 message: 'Formato de Id Inválido.',
                 content: id
-            })
+            });
         }
 
+        //Invoca o repositório base para este buscar o documento na base de dados
         this._repo.read( id )
-        .then( repo_return => res.status( repo_return.status ).json( repo_return.response ))
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error ));
     }
 
 
     atualizar_produto( req, res ){
+        //recupera a id da lista de parametros da requisição
         const id = req.params.id
 
+        //checa a validade do formato da id
         if( !this._validator.idFormatIsValid( id )){
             return res.status( httpStatusCode.BAD_REQUEST ).json({
                 message: 'Formato de Id Inválido.',
@@ -60,20 +66,26 @@ class ProdutoController{
             })
         }
 
-        let doc = {}
+        //monta o documento com as propriedades a serem atualizadas
+        let filter = {}
         for( let key in req.body ){
-            doc[ key ] = ( typeof req.body[ key ] === 'string' ) ? req.body[ key ].trim().toUpperCase() : req.body[ key ];
+            filter[ key ] = ( typeof req.body[ key ] === 'string' ) ? req.body[ key ].trim().toUpperCase() : req.body[ key ];
         }
-        console.log( doc );
 
-        this._repo.update( id, doc )
-        .then( repo_return => res.status( repo_return.status ).json( repo_return.response ))
-        .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( { message: "erro aqui porra!!", error: error } ));
+        //Invoca o repositório base para este buscar  e atualizar o documento na base de dados
+        this._repo.update( id, filter )
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
+        .catch( error => {
+            console.error( error );
+            res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error );
+        });
     }
 
     apagar_produto( req, res ){
+        //recupera a id da lista de parametros da requisição
         const id = req.params.id;
 
+        //checa a validade do formato da id
         if( !this._validator.idFormatIsValid( id )){
             return res.status( httpStatusCode.BAD_REQUEST ).json({
                 message: 'Formato de Id Inválido.',
@@ -81,9 +93,10 @@ class ProdutoController{
             })
         }
 
+        //Invoca o repositório base para este buscar e apagar o documento na base de dados
         this._repo.delete( id )
-        .then( repo_return => res.status( repo_return.status ).json( repo_return.response ))
-        .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( response ));       
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
+        .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error ));       
     }
 }
 
