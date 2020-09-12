@@ -1,0 +1,39 @@
+{
+  "name": "nodejs-restful-api",
+  "version": "1.0.0",
+  "description": "A restful ap built from scrach using nodejs",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "keywords": [
+    "nodejs",
+    "restful",
+    "api",
+    "rest",
+    "javascrip",
+    "express",
+    "mongodb",
+    "mongoose",
+    "jwt"
+  ],
+  "author": "Renato Lima Santos",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.10.3",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  }
+}
