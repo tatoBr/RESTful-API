@@ -1,5 +1,5 @@
 const jwt = require( 'jsonwebtoken' );
-const { httpStatusCode, misc: { jwt_secret }} = require( '../bin/variables ');
+const { httpStatusCode, misc: { jwt_secret }} = require( '../bin/variables' );
 
 module.exports = ( req, res, next )=>{
     try {
