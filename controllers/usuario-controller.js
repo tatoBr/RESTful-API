@@ -49,13 +49,13 @@ class UsuarioController {
 
                 //envia o documento para o repositório para q esse complete a transação com o banco de dados
                 this._repo.create(usuario)
-                    .then(result => { res.status(result.getStatusCode()).json(result.getResponse()); })
-                    .catch(error => {
-                        res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
-                            message: error.message,
-                            content: error
-                        });
+                .then(result => { res.status(result.getStatusCode()).json(result.getResponse()); })
+                .catch(error => {
+                    res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
+                        message: error.message,
+                        content: error
                     });
+                });
             }
         });
     }
@@ -94,10 +94,11 @@ class UsuarioController {
                 bcrypt.compare( senha, user.senha, ( error, comparation_result ) => {
                     if( error ) authfail(); //retorna erro se a comparação for mal sucedida
                     else if( !comparation_result ) authfail(); // retorna erro se as senhas não corresponder
-                    else{ res.status( httpStatusCode.OK ).json({
+                    else{     
+                        res.set( 'Authorization', token );                   
+                        res.status( httpStatusCode.OK ).json({
                         message: "Usuario authenticado",
-                        content: formatToRead( user ),
-                        token: token
+                        content: formatToRead( user )                       
                     })}// retorna ok se as senhas correspondem                     
                 })                
             }
