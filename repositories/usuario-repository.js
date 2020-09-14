@@ -64,12 +64,13 @@ class UsuarioRepository{
         //     populate: 'lista.produtoId'
         // })
         .exec()
+        //Se a busca não retornar nenhum documento, retorna um obj vazio
         .then( query_result => {
             if( !query_result ){                
                 return new Response( httpStatusCode.BAD_REQUEST, dbQueryResponses.NO_ID_FOUND, {} );
             }
             else{
-                console.log( query_result._idPedidos );
+                //Se a busca retornar algum documento, retorna esse documento
                 return new Response( httpStatusCode.OK, dbQueryResponses.DOC_RETRIEVED, formatToRead( query_result ));
             }
         })
@@ -85,14 +86,16 @@ class UsuarioRepository{
      * @returns { Promise<Response> }  - retorna uma promessa de que uma resposta será dada pelo banco de dados
      */
     readAll( filter = {}){
-        return UsuarioModel.find(filter)        
+        return UsuarioModel.find( filter )        
         .exec()
         .then( query_result => {
+            //Retorna um objeto vazio se a busca não retornar nenhum Documento
             if( !Array.isArray( query_result ) || query_result.length <= 0 )
             {
                 return new Response( httpStatusCode.BAD_REQUEST, dbQueryResponses.EMPTY_LIST, query_result );
             }
             else{
+                //Se a busca retornar documentos, envia esses para o controller
                 return new Response(
                     httpStatusCode.OK,
                     dbQueryResponses.LIST_RETRIEVED,
@@ -108,18 +111,20 @@ class UsuarioRepository{
 
     /**
      * Atualiza um usuário no banco de dados que tenha ID correspondente a passada no parâmetro
-     * @param { Number } id 
-     * @param { document } document 
+     * @param { Number } id - id do documento
+     * @param { document } document - documento com dados à serem atualizados
+     * @returns { Promise<Response> } - retorna uma promessa de que uma resposta será dada pelo banco de dados
      */
     update( id, document ){
         //Envia a query de atualização para o banco de dados
         return UsuarioModel.updateOne( { _id : id }, document )
         .then( update_result => {
-            //
+            //Se nenhum documento for atualizado, retorna o documento original
             if( update_result.nModified <= 0 ){
                 return new Response( httpStatusCode.BAD_REQUEST, dbQueryResponses.NONE_UPDATED, document );
             }
             else {
+                //se algum documento for atualizado, busca esse documento no banco de dados e retorna para o controller
                 return UsuarioModel.findById( id ).exec()
                 .then( query_result => {
                     if( !query_result ){
@@ -137,21 +142,26 @@ class UsuarioRepository{
         .catch( error => new Response( httpStatusCode.INTERNAL_SERVER_ERROR, "", null, error ));
     }
 
+    /** 
+     * busca e deleta um documento com a id passada no banco de dados     
+     * @param {*} id - ID do documento a ser deletado
+     * @returns { Promise<Response> } - retorna uma promessa de que uma resposta será dada pelo banco de dados
+     */
     delete( id ){
-        return UsuarioModel.findByIdAndDelete( id ).exec()
-        .then( delete_result => {
-            if( !delete_result ){
-                console.log( delete_result )
-                return new Response(
-                    httpStatusCode.BAD_REQUEST,
-                    dbQueryResponses.NO_ID_FOUND + dbQueryResponses.FAIL_TO_DELETE
-                    , {});
+        return UsuarioModel.deleteOne({ _id: id }).exec()
+        .then( query_result => {
+            //Verifica se algum documento foi deletado
+            if ( query_result.deletedCount <= 0 ) {
+                return new Response( httpStatusCode.NOT_FOUND, dbQueryResponses.NO_ID_FOUND + dbQueryResponses.FAIL_TO_DELETE, {});
             }
             else {
-                return new Response( httpStatusCode.OK, dbQueryResponses.DELETED_SUCCESSFULLY, formatToRead( delete_result ));
+                return new Response( httpStatusCode.OK, dbQueryResponses.DELETED_SUCCESSFULLY, { _id: id });
             }
         })
-        .catch( error => new Response( httpStatusCode.INTERNAL_SERVER_ERROR, "", null, error ));
+        .catch(error => {
+            console.error(error.message, error);
+            return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, error.message, null, error );
+        });        
     }
 }
 
