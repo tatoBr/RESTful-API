@@ -1,6 +1,9 @@
 {
   "name": "nodejs-restful-api",
   "version": "1.0.0",
+  "engines": {
+    "node": "12.x"
+  },
   "description": "A restful ap built from scrach using nodejs",
   "main": "index.js",
   "directories": {
