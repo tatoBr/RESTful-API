@@ -1,7 +1,7 @@
 const mongoose = require( 'mongoose' );
-const PedidoRepository = require( '../repositories/pedido-repository' )
-const { httpStatusCode, currencies, dbQueryResponses } = require('../bin/variables' );
-const Validator = require('../bin/helpers/validator');
+const PedidoRepository = require( '../repositories/pedido-repository' );
+const { httpStatusCode, currencies, dbQueryResponses, dbModels : { PEDIDO } } = require('../bin/variables' );
+const { validateId, validatePedidoRegister } = require('../bin/helpers/validator');
 
 class PedidoController{
     constructor(){
@@ -15,32 +15,30 @@ class PedidoController{
             });
         }
                
-        this._repo = new PedidoRepository();
-        this._validator = new Validator();
+        this._repo = new PedidoRepository();        
     }
 
-    criar_pedido( req, res ){
-        // recupera dados da requisição e cria um documento
+    criar_pedido( req, res ){        
+        //recupera os dados do corpo da requisição e monta um novo documento pedido
+        const { id, comprador, lista_de_produtos } = PEDIDO.campos; 
+       
+        const pedido = {};
+        pedido[ id ] = new mongoose.Types.ObjectId();
+        pedido[ comprador ] = req.body.idUsuario;
+        pedido[ lista_de_produtos ] = req.body.lista;
+    
+        //faz a validação dos dados
+        const { error } = validatePedidoRegister( pedido );
+        if( error ){
+            const { details: [{ message }]} = error;
+            return res.status( httpStatusCode.BAD_REQUEST ).json({ message: message });            
+        };
 
-        if( !this._validator.idFormatIsValid( req.body.idComprador )){
-            return res.status( httpStatusCode.BAD_REQUEST ).json({
-                message: 'Formato de Id Inválido.',
-                content: req.body.idComprador
-            });
-        }
-        let doc = {
-            _id: new mongoose.Types.ObjectId(),
-            comprador: req.body.idComprador,
-            lista: req.body.lista
-        }
-
-        this._repo.create( doc )
-        .then( response => {
-            if( !response )
-                return res.status( httpStatusCode.BAD_REQUEST ).json({ message: dbQueryResponses.NOT_CREATED, content: response })
-            else
-                return res.status( httpStatusCode.CREATED ).json({ message: dbQueryResponses.CREATED, content: formatDocument( response ) })
-        })
+        this._repo.create( pedido )
+        .then( result => {
+            console.log(result);
+            res.status(result.getStatusCode()).json(result.getResponse()); 
+        })     
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({ message: error.message, content: error }));
     }
 
