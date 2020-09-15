@@ -47,7 +47,7 @@ app.use( '/usuarios', usuario_router );
 
 //rotas que tratam erros que não foram tratados em outras rotas
 app.use(( req, res, next )=>{
-    const error = new Error( 'Não Encontrado.' );
+    const error = new Error( 'Ei vc...É vc mesmo lendo essa mensagem... Vc sabe que estou falando com vc mesma... Sabia que eu te amo mais que pudim de leite??' );
     error.status = httpStatusCode.NOT_FOUND;
     next( error );
 })
