@@ -1,26 +1,41 @@
 const mongoose = require( 'mongoose' );
 
 const ProdutoRepository = require( '../repositories/produto-repository' );
-const Validator = require( '../bin/helpers/validator' );
+const { validateId, validateProdutoRegister, validateProdutoUpdate } = require( '../bin/helpers/validator' );
 
 const { httpStatusCode, currencies, dbModels: { PRODUTO }} = require( '../bin/variables' );
 
-
-
+/** Classe que representa o Controller de Produtos */
 class ProdutoController{
+
+    /**
+     * Produto Controller constructor
+     */
     constructor(){
-        this._repo = new ProdutoRepository();
-        this._validator = new Validator();
+        this._repo = new ProdutoRepository();        
     }
 
+    /**
+     * cria um novo produto
+     * @param {*} req  requisição para o servidor
+     * @param {*} res  resposta do servidor
+     */
     criar_produto( req, res ){ 
         //recupera os dados do corpo da requisição e cria um novo documento
-        let produto = {}
-        produto[ PRODUTO.campos.id ] = new mongoose.Types.ObjectId(); 
-        produto[ PRODUTO.campos.nome ] = req.body.nome.trim().toUpperCase();
-        produto[ PRODUTO.campos.preco ] = req.body.preco;
-        produto[ PRODUTO.campos.estoque ] = req.body.estoque;
-        produto[ PRODUTO.campos.imagem ] = req.file ? req.file.path : PRODUTO.defaultURLimage;                 
+        const { defaultURLimage, campos: { id, nome, preco, estoque, imagem }} = PRODUTO;
+        const produto = {}
+        produto[ id ] = new mongoose.Types.ObjectId(); 
+        produto[ nome ] = req.body.nome.trim().toUpperCase();
+        produto[ preco ] = req.body.valor;
+        produto[ estoque ] = req.body.estoque;
+        produto[ imagem ] = req.file ? req.file.path : defaultURLimage; 
+        
+        //faz a validação dos dados e responde com erro se algum dado for inválido
+        const { error } = validateProdutoRegister( produto );
+        if( error ){
+            const { details : [{ message }]} = error;
+           return  res.status( httpStatusCode.BAD_REQUEST ).json({ message: message });
+        } 
  
         //Invoca o repositorio e envia o Documento para este realizar a transação com o banco de dados
         this._repo.create( produto )
@@ -28,6 +43,11 @@ class ProdutoController{
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error ));           
     }    
     
+    /**
+     * busca a lista de produtos
+     * @param {*} req requisição para o servidor
+     * @param {*} res resposta do servidor
+     */
     listar_produtos( req, res ){
         //invoca o repositório para este realizar a query no banco de dados
         this._repo.readAll()
@@ -35,12 +55,17 @@ class ProdutoController{
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error.message ))
     }
 
+    /**
+    * Atualiza os dados de um produto específico
+    * @param {*} req requisição para o servidor
+    * @param {*} res resposta do servidor
+    */
     buscar_produto( req, res ){
         //recupera a id da lista de parametros da requisição
         const id = req.params.id
         
         //checa a validade do formato da id
-        if( !this._validator.idFormatIsValid( id )){
+        if( !validateId( id )){
             return res.status( httpStatusCode.BAD_REQUEST ).json({
                 message: 'Formato de Id Inválido.',
                 content: id
@@ -53,25 +78,49 @@ class ProdutoController{
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json( error ));
     }
 
-
+    /**
+    * Atualiza os dados de um produto específico
+    * @param {*} req requisição para o servidor
+    * @param {*} res resposta do servidor 
+    */
     atualizar_produto( req, res ){
         //recupera a id da lista de parametros da requisição
         const id = req.params.id
 
         //checa a validade do formato da id
-        if( !this._validator.idFormatIsValid( id )){
+        if( !validateId( id )){
             return res.status( httpStatusCode.BAD_REQUEST ).json({
                 message: 'Formato de Id Inválido.',
                 content: id
             })
         }
-
+        
         //monta o documento com as propriedades a serem atualizadas
         let filter = {}
         for( let key in req.body ){
-            filter[ key ] = ( typeof req.body[ key ] === 'string' ) ? req.body[ key ].trim().toUpperCase() : req.body[ key ];
+            if( req.body[ key ] ) {                
+                filter[ key ] = ( typeof req.body[ key ] === 'string' ) ? req.body[ key ].trim().toUpperCase() : req.body[ key ];
+            }
+        }
+        if( req.file ) {
+            filter[ 'imagemURL' ] = req.file.path
         }
 
+        //Verifica se o documento possui alguma propriedade para ser atualizada
+        if( Object.keys( filter ).length <= 0 ){
+            return res.status( httpStatusCode.BAD_REQUEST ).json({
+                message: 'Não foi passado nenhum dado à ser atualizado',
+                filter: filter
+            })
+        };
+        
+        //valida os dados do documento de atualização
+        const { error } = validateProdutoUpdate( filter );
+        if( error ){
+            let { details: [{ message }]} = error;
+            return res.status( httpStatusCode.BAD_REQUEST ).json({ message: message });
+        }       
+       
         //Invoca o repositório base para este buscar  e atualizar o documento na base de dados
         this._repo.update( id, filter )
         .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
@@ -81,12 +130,17 @@ class ProdutoController{
         });
     }
 
+    /**
+    * busca um produto pela id e apaga o mesmo
+    * @param {*} req requisição para o servidor
+    * @param {*} res resposta do servidor  
+    */
     apagar_produto( req, res ){
         //recupera a id da lista de parametros da requisição
         const id = req.params.id;
 
         //checa a validade do formato da id
-        if( !this._validator.idFormatIsValid( id )){
+        if( !validateId( id )){
             return res.status( httpStatusCode.BAD_REQUEST ).json({
                 message: 'Formato de Id Inválido.',
                 content: id
