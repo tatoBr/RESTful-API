@@ -6,7 +6,7 @@ const validateId = ( id ) => {
     return regexp.test( id );
 }
 
-const validateUserData = ( data ) => {
+const validateUserRegister = ( data ) => {
     const schema = joi.object({
         [ dbModels.USER.campos.id ] : joi.required(),
         [ dbModels.USER.campos.nomeDeUsuario ] : joi.string().pattern(new RegExp('^[\\S-_.a-zA-Z0-9]{3,30}$')).required(),
@@ -22,4 +22,14 @@ const validateUserData = ( data ) => {
     return schema.validate( data );
 }
 
-module.exports = { validateId, validateUserData };
+const validateUserUpdate = ( data ) => {
+    const schema = joi.object({
+        [ dbModels.USER.campos.nome ] : joi.string().pattern( /^[\s\w]{3,30}$/ ).min(3).max(30),
+        [ dbModels.USER.campos.sobrenome ] : joi.string().pattern( /^[\s\w]{3,60}$/ ).min(3).max(30),
+        [ dbModels.USER.campos.dataDeNascimento ] : joi.date()
+    })
+
+    return schema.validate( data );
+}
+
+module.exports = { validateId, validateUserRegister, validateUserUpdate };
