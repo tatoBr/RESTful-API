@@ -59,8 +59,26 @@ const validateProdutoUpdate = ( data ) => {
     return schema.validate( data );
 }
 
+const validatePedidoRegister = ( data ) => {
+    const idRegEx = new RegExp( "^[0-9a-fA-F]{24}$" );
+    const { id, comprador, lista_de_produtos } = dbModels.PEDIDO.campos;
+
+    const schema = joi.object({
+        [ id ]: joi.required(),
+        [ comprador ]: joi.string().pattern( idRegEx ).required(),
+        [ lista_de_produtos ]: joi.array().items(
+            joi.object({
+                produtoId: joi.string().pattern( idRegEx ).required(),
+                quantidade: joi.number().required()})
+            ).required()
+    });
+
+    return schema.validate( data );
+}
+
 module.exports = {
     validateId,
     validateUserRegister, validateUserUpdate,
-    validateProdutoRegister, validateProdutoUpdate
+    validateProdutoRegister, validateProdutoUpdate,
+    validatePedidoRegister
 };
