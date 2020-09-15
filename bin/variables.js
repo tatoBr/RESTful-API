@@ -37,7 +37,7 @@ module.exports = {
                 id: '_id',
                 nome: 'nome',
                 preco: 'preco',
-                estoque: 'qtd_em_estoque',
+                estoque: 'estoque',
                 imagem: 'imagemURL'
             },
             defaultURLimage: 'imagens\\default\\default_product.jpg'

@@ -6,7 +6,7 @@ const produtoSchema = new mongoose.Schema({
     imagemURL: { type : String }, 
     nome : { type: String, required: true, trim: true },
     preco : Number,
-    qtd_em_estoque: { type: Number, required: true, default: 0 }
+    estoque: { type: Number, required: true, default: 0 }
 })
 
 module.exports = mongoose.model( dbModels.PRODUTO.nome, produtoSchema );
