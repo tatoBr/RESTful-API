@@ -1,49 +1,56 @@
 const PedidoModel = require( '../models/pedido-model');
-const { dbModels } = require( '../bin/variables' );
+const UsuarioModel = require( '../models/usuario-model');
+const Response = require( '../bin/helpers/response' );
+const { dbModels, httpStatusCode, dbQueryResponses } = require( '../bin/variables' );
+const { query } = require('express');
 const populate_args = { path: 'lista', populate: { path: 'produtoId', model: dbModels.PRODUTO.nome }};
-// class Response{
-//     /**
-//      * 
-//      * @param { Number } status 
-//      * @param { Document } data 
-//      * @param { String } message 
-//      * @param { Error } error 
-//      */
-//     constructor(status, data, message=null, error=null ){
-//         this._status = status;
-//         this._data = data;
-//         this._message = message
-//         this._error=error;
-//     }    
-    
-//     get status(){
-//         return this._status;
-//     }   
-//     set status( code ){
-//         this.status = code;
-//     }
-// }
 
 class PedidoRepository{
     constructor(){}
 
     /**
      * Salva um novo documento no banco de dados
-     * @param { Document } document
-     * @returns { Promise<Document> }  - Retorna uma promessa de que um documento será salvo na base de dados
+     * @param { Document } documento
+     * @returns { Promise< Response > }  - Retorna uma promessa de que um documento será salvo na base de dados
      */
-    create( document ){ 
-        //cria um novo pedido       
-        let pedido = new PedidoModel( document );
-        
-        return pedido.save()
-        .then( saved => { 
-            //O modelo 'Pedido' salva apenas a ID do produto
-            //O metodo 'populate' preenche a lista de produtos do pedido com os detalhes de cada produto                      
-            return saved.populate( populate_args ).execPopulate();                               
-        })  
-        .then( populated => populated )        
-        .catch( error => error );
+    create( documento ){         
+        const { id, comprador, lista_de_produtos } = dbModels.PEDIDO.campos;
+
+        //verifica se o usuário passado existe no banco de dados
+        return UsuarioModel.findById( documento[ comprador ]).exec()
+        .then( query_result => {            
+            //se o usuário passado não existe no banco de dados, retorna erro
+            if( !query_result ){
+                return new Response( httpStatusCode.BAD_REQUEST, "Usuário com id passada não existe no banco de dados",{} );
+            }
+            else{          
+               
+                const pedido = new PedidoModel( documento )                
+                return new Response( httpStatusCode.CREATED, dbQueryResponses.CREATED, {} );
+                return pedido.save()
+                .then( save_result => {
+                    console.log( save_result );
+                    return new Response( httpStatusCode.CREATED, dbQueryResponses.CREATED, save_result );
+                })
+                .catch( error => {
+                    console.error( error.message, error );
+                    return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, '', null, error );
+                });
+            }
+        })
+        .catch( error => {
+            console.error( error.message, error );
+            return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, '', null, error );
+        });
+
+        // return pedido.save()
+        // .then( saved => { 
+        //     //O modelo 'Pedido' salva apenas a ID do produto
+        //     //O metodo 'populate' preenche a lista de produtos do pedido com os detalhes de cada produto                      
+        //     return saved.populate( populate_args ).execPopulate();                               
+        // })  
+        // .then( populated => populated )        
+        // .catch( error => error );
     }
 
     /**
