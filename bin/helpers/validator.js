@@ -32,4 +32,35 @@ const validateUserUpdate = ( data ) => {
     return schema.validate( data );
 }
 
-module.exports = { validateId, validateUserRegister, validateUserUpdate };
+const validateProdutoRegister = ( data ) => {
+    const { id, imagem, nome, preco, estoque } = dbModels.PRODUTO.campos;
+
+    const schema = joi.object({
+        [ id ] : joi.required(),
+        [ imagem ] : joi.string().required(),
+        [ nome ] : joi.string().required().trim(),
+        [ preco ] : joi.number().required(),
+        [ estoque ] : joi.number().required()
+    });
+
+    return schema.validate( data );
+}
+
+const validateProdutoUpdate = ( data ) => {
+    const { imagem, nome, preco, estoque } = dbModels.PRODUTO.campos;
+
+    const schema = joi.object({       
+        [ imagem ] : joi.string(),
+        [ nome ] : joi.string().min(3).max(30).trim(),
+        [ preco ] : joi.number(),
+        [ estoque ] : joi.number()
+    });
+
+    return schema.validate( data );
+}
+
+module.exports = {
+    validateId,
+    validateUserRegister, validateUserUpdate,
+    validateProdutoRegister, validateProdutoUpdate
+};
