@@ -1,6 +1,8 @@
 const UsuarioModel = require( '../models/usuario-model' );
+const PedidoModel = require( '../models/pedido-model');
 const Response = require( '../bin/helpers/response' );
-const { httpStatusCode, dbQueryResponses, dbModels: { USER }, dbModels} = require( '../bin/variables' );
+const { httpStatusCode, dbQueryResponses, dbModels: { USER, PEDIDO }, dbModels} = require( '../bin/variables' );
+const { findById } = require('../models/usuario-model');
 
 /** Class representing a User Repository */
 class UsuarioRepository{
@@ -86,7 +88,8 @@ class UsuarioRepository{
      * @returns { Promise<Response> }  - retorna uma promessa de que uma resposta será dada pelo banco de dados
      */
     readAll( filter = {}){
-        return UsuarioModel.find( filter )        
+        console.log( USER.campos.pedidos );
+        return UsuarioModel.find( filter ).populate( USER.campos.pedidos )        
         .exec()
         .then( query_result => {
             //Retorna um objeto vazio se a busca não retornar nenhum Documento
@@ -148,21 +151,55 @@ class UsuarioRepository{
      * @returns { Promise<Response> } - retorna uma promessa de que uma resposta será dada pelo banco de dados
      */
     delete( id ){
-        return UsuarioModel.deleteOne({ _id: id }).exec()
+        //Busca o usuario na base de dados
+        return UsuarioModel.findById( id, [ USER.campos.pedidos] ).exec()
         .then( query_result => {
-            //Verifica se algum documento foi deletado
-            if ( query_result.deletedCount <= 0 ) {
-                return new Response( httpStatusCode.NOT_FOUND, dbQueryResponses.NO_ID_FOUND + dbQueryResponses.FAIL_TO_DELETE, {});
+            //Se o usuario com id passada não for encontrado no banco de dados, responde com erro
+            if( !query_result ){                
+                return new Response( httpStatusCode.BAD_REQUEST, dbQueryResponses.NO_ID_FOUND, {});
             }
-            else {
-                return new Response( httpStatusCode.OK, dbQueryResponses.DELETED_SUCCESSFULLY, { _id: id });
+            else{
+                //Se o usuário existe na base de dados, apaga os pedidos da sua lista de pedidos
+                console.log(query_result[ USER.campos.pedidos ]);
+                return PedidoModel.deleteMany({[ PEDIDO.campos.id ] : { $in : query_result[ USER.campos.pedidos ]}}).exec()
+                .then( del_pedidos_result => {
+                    
+                    //Por fim, deleta o usuário                    
+                    return UsuarioModel.deleteOne({[ USER.campos.id ] : id }).exec()
+                    .then( del_user_result => {                        
+                        return new Response(httpStatusCode.OK, dbQueryResponses.DELETED_SUCCESSFULLY, {});
+                    })
+                    .catch( error => {
+                        console.error(error.message, error);
+                        return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, error.message, null, error );
+                    })
+                })
+                .catch( error => {
+                    console.error(error.message, error);
+                    return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, error.message, null, error );
+                });
             }
         })
-        .catch(error => {
+        .catch( error => {
             console.error(error.message, error);
             return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, error.message, null, error );
-        });        
+        })
     }
+    //     return UsuarioModel.deleteOne({ _id: id }).exec()
+    //     .then( query_result => {
+    //         //Verifica se algum documento foi deletado
+    //         if ( query_result.deletedCount <= 0 ) {
+    //             return new Response( httpStatusCode.NOT_FOUND, dbQueryResponses.NO_ID_FOUND + dbQueryResponses.FAIL_TO_DELETE, {});
+    //         }
+    //         else {
+    //             return new Response( httpStatusCode.OK, dbQueryResponses.DELETED_SUCCESSFULLY, { _id: id });
+    //         }
+    //     })
+    //     .catch(error => {
+    //         console.error(error.message, error);
+    //         return new Response( httpStatusCode.INTERNAL_SERVER_ERROR, error.message, null, error );
+    //     });        
+    // }
 }
 
 /*************************************** FUNÇOES AUXILIARES *****************************************************/
