@@ -3,7 +3,9 @@ const PedidoRepository = require( '../repositories/pedido-repository' );
 const { httpStatusCode, currencies, dbQueryResponses, dbModels : { PEDIDO } } = require('../bin/variables' );
 const { validateId, validatePedidoRegister } = require('../bin/helpers/validator');
 
+/** Classe que representa o Controller do Pedido */
 class PedidoController{
+    /**Pedido Controller constructor **/
     constructor(){
         /**
          * @param { Error } error 
@@ -18,6 +20,11 @@ class PedidoController{
         this._repo = new PedidoRepository();        
     }
 
+    /**
+     * cria um novo pedido
+     * @param {*} req 
+     * @param {*} res 
+     */
     criar_pedido( req, res ){        
         //recupera os dados do corpo da requisição e monta um novo documento pedido
         const { id, comprador, lista_de_produtos } = PEDIDO.campos; 
@@ -34,57 +41,78 @@ class PedidoController{
             return res.status( httpStatusCode.BAD_REQUEST ).json({ message: message });            
         };
 
+        //envia os dados para o repositório realizar a transação com o banco de dados
         this._repo.create( pedido )
-        .then( result => {
-            console.log(result);
-            res.status(result.getStatusCode()).json(result.getResponse()); 
-        })     
+        .then( result => res.status(result.getStatusCode()).json( result.getResponse() ))     
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({ message: error.message, content: error }));
     }
 
+    /**
+     * busca lista de pedidos
+     * @param {*} req 
+     * @param {*} res 
+     */
     listar_pedidos( req, res ){
         //invoca o repositório para realizar a transação com o banco de dados
         this._repo.readAll()
-        .then( response => {            
-            if( !Array.isArray( response ) || response.length <= 0 )
-                return res.status( httpStatusCode.BAD_REQUEST ).json({ message: dbQueryResponses.EMPTY_LIST, content: response })
-            else
-                return res.status( httpStatusCode.OK ).json({ message: dbQueryResponses.LIST_RETRIEVED, content: response });
-        })
-        .catch( error => {
-            res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({ message: error.message, error: error });
-        })
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
+        .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({ message: error.message, error: error }));
     }
 
+    /**
+     * Busca um pedido específico pela ID
+     * @param {*} req 
+     * @param {*} res 
+     */
     buscar_pedido( req, res ){
         // recupera a id nos parâmetros da requisição
         const id = req.params.id;
+        
+        //Verifica se a id possui um formato válido
+        if( !validateId( id )){
+            return res.status( httpStatusCode.BAD_REQUEST ).json({
+                message: 'Formato de ID inválido.',
+                content: id
+            })
+        }
 
         //invoca o repositório para realizar a transação com o banco de dados
         this._repo.read( id )
-        .then( response => {
-            if( !response )
-                return res.status( httpStatusCode.BAD_REQUEST ).json({ message: dbQueryResponses.NO_ID_FOUND, content: response })
-            else
-                return res.status( httpStatusCode.OK ).json({ message: dbQueryResponses.RETRIEVED, content: response })
-        })
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({ message: error.message, error: error }));
     }
     
-    atualizar_pedido( req, res ){
-        //toDo
+    /**
+     * Busca e atualiza um pedido pela ID
+     * @param {*} req 
+     * @param {*} res 
+     */
+    atualizar_pedido( req, res ){        
+        res.status( httpStatusCode.OK ).json({
+            message: 'Metodo a ser implementado'
+        })        
     }
 
+    /**
+     * Busca e apaga um pedido pela ID
+     * @param {*} req 
+     * @param {*} res 
+     */
     apagar_pedido( req, res ){
+        // recupera a id nos parâmetros da requisição
         const id = req.params.id;
+        
+        //Verifica se a id possui um formato válido
+        if( !validateId( id )){
+            return res.status( httpStatusCode.BAD_REQUEST ).json({
+                message: 'Formato de ID inválido.',
+                content: id
+            })
+        }
 
+        //invoca o repositório para realizar a transação com o banco de dados
         this._repo.delete( id )
-        .then( deletedCount => {
-            if( deletedCount > 0 )
-                return res.status( httpStatusCode.OK ).json({ message : dbQueryResponses.DELETED_SUCCESSFULLY, content: null })
-            else
-                return res.status( httpStatusCode.BAD_REQUEST ).json({ message: dbQueryResponses.NO_ID_FOUND, content: null })            
-        })
+        .then( result => res.status( result.getStatusCode()).json( result.getResponse()))
         .catch( error => res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({ message: error.message, content: error }))
     }
 };
