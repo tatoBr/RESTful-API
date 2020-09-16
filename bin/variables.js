@@ -47,7 +47,9 @@ module.exports = {
             campos : {
                 id : '_id',
                 comprador: 'comprador',
-                lista_de_produtos: 'lista'
+                lista_de_produtos: 'lista',
+                id_do_produto : 'produtoId',
+                qtd_do_produto : 'quantidade'
             }
         },
     },
