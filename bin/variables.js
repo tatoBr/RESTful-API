@@ -27,6 +27,8 @@ module.exports = {
                 cpf: 'cadastro_pessoa_fisica',
                 email: 'email',
                 senha: 'senha',
+                failed_login_attempts: 'loginFail',
+                blocked_until: 'blockEndTime',
                 dataDeNascimento: 'data_nasc',
                 pedidos: '_idPedidos'
             }

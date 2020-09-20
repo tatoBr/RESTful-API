@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const { misc: { jwt_secret }, dbModels: { USER }, httpStatusCode, dbModels } = require('../bin/variables');
 
+const MAX_LOGIN_ATTEMPS = 6;
+const BLOCK_WAIT_TIME = 30 * 60 * 1000;
 
 /** Class representing a User Controller */
 class UsuarioController {
@@ -75,7 +77,6 @@ class UsuarioController {
         });
     }
 
-
     /**
      * busca a lista de usuários
      * @param {*} req requisição para o servidor
@@ -108,15 +109,14 @@ class UsuarioController {
         }
 
         this._repo.read(id)
-            .then(result => { res.status(result.getStatusCode()).json(result.getResponse()); })
-            .catch(error => {
-                res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
-                    message: error.message,
-                    content: error
-                });
-            })
+        .then(result => { res.status(result.getStatusCode()).json(result.getResponse()); })
+        .catch(error => {
+            res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
+                message: error.message,
+                content: error
+            });
+        })
     }
-
 
     /**
     * Atualiza os dados de um usuário específico
@@ -143,7 +143,7 @@ class UsuarioController {
             });
         }
 
-        //faz a validação dos dados e retorna um erro se alguma propriedade tiver valor inválido
+        //faz a validação dos dados e retorna um erro se alguma propriedade for inválida
         let { error } = validateUserUpdate( usuarioAtualizado );
         if ( error ) {
             console.log( error );
@@ -175,7 +175,7 @@ class UsuarioController {
         //verifica autenticidade da id
         const id = req.params.id;
 
-        if (!validateId(id)) {
+        if ( !validateId(id) ) {
             return res.status(httpStatusCode.BAD_REQUEST).json({
                 message: 'Formato de Id Inválido.',
                 content: id
@@ -184,15 +184,15 @@ class UsuarioController {
 
         //Invoca o repositório para completar a ação no banco de dados
         this._repo.delete(id)
-            .then(resust => {
-                res.status(resust.getStatusCode()).json(resust.getResponse());
-            })
-            .catch(error => {
-                res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
-                    message: error.message,
-                    content: error
-                });
-            })
+        .then( resust => {
+            res.status(resust.getStatusCode()).json(resust.getResponse());
+        })
+        .catch( error => {
+            res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
+                message: error.message,
+                content: error
+            });
+        })
     }
 
     /**
@@ -215,55 +215,76 @@ class UsuarioController {
                 { [ USER.campos.email ]: email }
             ]
         })
-            .then( query_result => {
-                
-                const authfail = () => { return res.status(httpStatusCode.BAD_REQUEST).json({ message: "Falha na authenticação" }) };
-                let users = query_result.getResponse().content;
+        .then( query_result => {
+            const sendAuthenticationFailResponse = function(){
+                return res.status( httpStatusCode.BAD_REQUEST ).json({ message: "Falha na authenticação" });
+            };            
 
-                //se a query retornar vazia, então o usuario nao esta cadastrado. retorna erro
-                if (!Array.isArray( users ) || users.length <= 0) authfail();
+            let users = query_result.getResponse().content;
+            
+            //se a query retornar vazia, então o usuario nao esta cadastrado. responde com uma msg de erro na authenticação
+            if ( !Array.isArray( users ) || users.length <= 0 ){
+                sendAuthenticationFailResponse();
+            }
+            
+            else {
+                let user = users[0];
 
-                //se o usuario for encontrado, checar correspondência da senha passada com a senha do banco de dados
-                else {
-                    let user = users[0];
-                    bcrypt.compare(senha, user.senha, (error, comparation_result) => {                        
-                        if ( error ) authfail(); //retorna erro se a comparação for mal sucedida
-
-                        else if ( !comparation_result ) authfail(); // retorna erro se as senhas não corresponder
-
-                        //se as senhas corresponderem, cria um token de acesso e evia para o usuário
+                //Verifica se o usuário está liberado para fazer uma tentativa de login
+                if( userIsOkToLogin( user )){
+                    
+                    //Verifica correspondência da senha passada com a senha do banco de dados
+                    bcrypt.compare(senha, user.senha, ( error, password_comparation_result ) => { 
+                        //responde com erro se a comparação for mal sucedida 
+                        if ( error ){
+                            sendAuthenticationFailResponse();
+                        }
+                        
+                        // Incrementa o número de tentativas de login falhas e responde com erro se as senhas não corresponderem
+                        else if ( !password_comparation_result ){
+                            incrementFailedLoginAttempts( user );
+                            sendAuthenticationFailResponse();
+                        } 
+                        
+                        //se as senhas corresponderem, cria um token de acesso e envia para o usuário
                         else {
-                            //dados que serão gravados no token de acesso
-                            let payload = {
-                                id: user[USER.campos.id],
-                                username: user[USER.campos.nomeDeUsuario],
-                                email: user[USER.campos.email]
-                            }
+                            clearFailedLoginAttempt( user );
 
+                            //dados que serão gravados no token de acesso                            
+                            let payload = {
+                                id: user[ USER.campos.id ],
+                                username: user[ USER.campos.nomeDeUsuario ],
+                                email: user[ USER.campos.email ]
+                            }
+                            
                             //cria o token propriamente dito
                             let token = jwt.sign( payload, process.env.JWT_SECRET || jwt_secret, { expiresIn: "30m" });
-
+                            
                             //anexa o token no cabeçalho da resposta
-                            res.set('Authorization', token);
-
+                            res.set( 'Authorization', token );
+                            
                             //envia a resposta
+                            // retorna ok se as senhas correspondem                     
                             res.status( httpStatusCode.OK ).json({
                                 message: "Usuario authenticado",
                                 content: formatToRead(user)
                             })
-                        }// retorna ok se as senhas correspondem                     
+                        }
                     })
                 }
-            })
-            .catch(error => {
-                res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({
-                    message: error.message,
-                    content: error
-                });
-            })
+                else{
+                    sendAuthenticationFailResponse();
+                }
+            }
+        })
+        .catch(error => {
+            res.status( httpStatusCode.INTERNAL_SERVER_ERROR ).json({
+                message: error.message,
+                content: error
+            });
+        })
     }
 }
-
 
 /*************************************** FUNÇOES AUXILIARES *****************************************************/
 /**  
@@ -289,5 +310,62 @@ const formatToRead = function (unformated_doc) {
 
     return formated_doc;
 };
+
+/**
+ * aumenta o número de tentativas de login que falharam por conter senha incorreta
+ * @param { UsuarioModel } user 
+ */
+async function incrementFailedLoginAttempts( user ){
+    
+    let loginFailedAttempts = user[ USER.campos.failed_login_attempts ]
+    let blockUntil;
+
+    if( loginFailedAttempts < MAX_LOGIN_ATTEMPS ){        
+        loginFailedAttempts++
+        user[ USER.campos.failed_login_attempts ] = loginFailedAttempts;
+
+        if( loginFailedAttempts >= MAX_LOGIN_ATTEMPS ){
+            blockUntil = Date.now() + BLOCK_WAIT_TIME
+            user[ USER.campos.blocked_until ] = blockUntil;
+        }
+
+        await user.save();
+    }    
+} 
+
+/**
+ * Clear failed Login Attempts from a given user
+ * @param { UsuarioModel } user 
+ */
+async function clearFailedLoginAttempt( user ) {
+    user [ USER.campos.failed_login_attempts ] = 0;
+    user [ USER.campos.blocked_until ] = Date.now()
+    await user.save();    
+}
+/**
+ * Check if a given user has too many failed loggins attempts or if its in 'cool of' time
+ * @param { String } userId
+ * @returns { Boolean } if the user is up to make a login attempt 
+ */
+const userIsOkToLogin = async function( user ){   
+    
+    let userCanLogin = true;
+    let failLoginAttempt = user[ USER.campos.failed_login_attempts];
+    let blockTimeOut = user[ USER.campos.blocked_until ];
+    
+    if( failLoginAttempt >= MAX_LOGIN_ATTEMPS ){
+        if( blockTimeOut.getTime() > Date.now()){
+            return !userCanLogin;
+        }
+        else{
+            user[ USER.campos.failed_login_attempts ] = 0;
+            await user.save();
+            return userCanLogin;
+        }
+    }
+    else{
+        return userCanLogin;
+    }
+}
 
 module.exports = UsuarioController;
